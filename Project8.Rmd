@@ -1,0 +1,108 @@
+---
+title: "Practical Course Project"
+author: "Jack Chesson"
+date: "02/05/2021"
+output: html_document
+---
+
+# Introduction
+
+In this Project, analysos is done to predict the efficacy and manner in which a group of individuals performed activities. The data presents readings from multiple types of activity trackers which can record the movements of individuals. The dataset is derived from a study on a group of 6 individuals who performed activities correctly as well as incorrectly. The goal is to accurately predict the manner in which the activity was performed. More can be found on the data here:
+
+http://groupware.les.inf.puc-rio.br/har 
+
+# Data 
+
+The data used in tyhis project is available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+This data has been generously provided by 
+http://groupware.les.inf.puc-rio.br/har
+
+# Analysis
+
+### Loading the environment
+
+```{r Packages&Data}
+library(caret)
+library(randomForest)
+
+if(!file.exists('train.csv')){
+  download.file(url = 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv', destfile = 'train.csv', quiet = TRUE)
+}
+
+if (!file.exists('test.csv')) {
+  download.file(url = 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv', 
+                destfile = 'test.csv', quiet = TRUE)
+}
+
+trainData <- read.csv('train.csv')
+testData <- read.csv('test.csv')
+```
+
+### Subsetting Data
+
+Here the data is subset into a training and testing set at 80% and 20% respectively. The training set is then refined to exclude variables that are similar and variables with no data.
+```{r Important Data}
+
+train <- trainData[, 6:ncol(trainData)]
+set.seed((23954))
+newTrain <- createDataPartition(y = train$classe, p = 0.8, list = FALSE)
+training <- train[newTrain, ]
+testing <- train[-newTrain, ]
+
+nzv <- nearZeroVar(train, saveMetrics = TRUE)
+keep <- row.names(nzv[nzv$nzv == FALSE, ])
+training <- training[, keep]
+training <- training[, colSums(is.na(training)) == 0]
+dim(training)
+```
+### Model Training
+
+The training data will be cross validated and a model is fit using randomForest.
+
+```{r}
+control <- trainControl(method = 'cv', number = 5)
+```
+
+
+```{r}
+set.seed(2384)
+randf <- train(classe~.,data = training, method = 'rf', trControl = control)
+randf$finalModel
+```
+
+Predict using this model and the test set, and then the fit is checked for accuracy.
+
+```{r Pred}
+
+pred <- predict(randf, newdata = testing)
+confusionMatrix(factor(pred), factor(testing$classe))$table
+confusionMatrix(factor(pred), factor(testing$classe))$overall[1]
+```
+The accuracy is 99.9% under the 5-fold cross-validation
+
+### Model Selection
+
+Since the random forest model fit the subset of test data to 99.9% accuracy, this model will be used to predict the raw test Data with the most accuracy. The random forest model seems to predict classe from the data with minimal error and thus is why it was selsected. 
+
+```{r Test}
+
+FinalTest <- predict(randf, newdata = testData)
+FinalTest
+```
+
+
+
+
+
+
+
+
+
+
+
+
